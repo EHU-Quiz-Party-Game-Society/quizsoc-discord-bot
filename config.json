@@ -1,0 +1,13 @@
+{
+  "client": {
+    "clientId": "899341195828953138",
+    "guildId": "897946078077419550",
+    "token": "ODk5MzQxMTk1ODI4OTUzMTM4.YWxWwg.RS02lQRFE1coWFZx-2tqDY0Fm2c"
+  },
+  "mysql": {
+    "host": "localhost",
+    "user": "root",
+    "password": "",
+    "database": "test_database"
+  }
+}
