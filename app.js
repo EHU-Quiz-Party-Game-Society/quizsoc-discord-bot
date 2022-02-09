@@ -11,7 +11,7 @@ const client = new DiscordJS.Client({
 client.on('ready', () => {
     console.log('Quiz Client: JS Bot Ready')
 
-    const guildId = '897946078077419550'
+    const guildId = process.env.GUILD_ID
     const guild = client.guilds.cache.get(guildId)
     let commands
 
@@ -36,7 +36,7 @@ function handleErrors(response) {
 
 async function fetchRandomQuestion() {
     //Get API data - Only get Multiple Choice Questions
-    let response = await fetch('http://quizsociety.test/api/question/random?type=1');
+    let response = await fetch(process.env.URL + '/api/question/random?type=1');
     let data = await response.json();
     data = JSON.stringify(data);
     data = JSON.parse(data);
@@ -45,7 +45,7 @@ async function fetchRandomQuestion() {
 
 async function fetchQuestion(questionID) {
     //Get API data - Only get Multiple Choice Questions
-    let response = await fetch('http://quizsociety.test/api/question/' + questionID);
+    let response = await fetch(process.env.URL + '/api/question/' + questionID);
     let data = await response.json();
     data = JSON.stringify(data);
     data = JSON.parse(data);
@@ -56,17 +56,17 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isCommand()) {
         let data = await fetchRandomQuestion();
 
-        let test;
+        let addToMessageEmbed;
         const row = new MessageActionRow()
             .addComponents(
-                test = new MessageSelectMenu()
+                addToMessageEmbed = new MessageSelectMenu()
                     .setCustomId('select')
                     .setPlaceholder('Select an answer...'),
             );
 
         let splitOptions = data.options.split(/\r?\n/)
         splitOptions.forEach(function (element) {
-            test.addOptions([{
+            addToMessageEmbed.addOptions([{
                 label: element,
                 value: element.charAt(0).toUpperCase() //Convert to Upper Case to check against correct answer
             }])
@@ -75,7 +75,7 @@ client.on('interactionCreate', async (interaction) => {
         const exampleEmbed = new MessageEmbed()
             .setColor('#0099ff')
             .setTitle(data.question)
-            .setAuthor({ name: 'EHU Quiz & Party Game Question Bank', /**iconURL: 'https://i.imgur.com/AfFp7pu.png',**/ url: 'https://ehuquizsociety.com' })
+            .setAuthor({ name: 'EHU Quiz & Party Game Question Bank', url: 'https://ehuquizsociety.com' })
             .setDescription(data.options)
             .addField('Question Category', data.category.name, true)
             .setTimestamp()
