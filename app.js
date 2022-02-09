@@ -101,20 +101,17 @@ client.on('interactionCreate', async (interaction) => {
         const correctEmbed = new MessageEmbed()
             .setColor('#25ff00')
             .setTitle("Correct")
-            .setDescription('<@' + interaction.user.id + '> You have selected the correct answer! You chose: ' + interaction.values[0])
-            .addField('Question ID', data.id.toString(), true)
+            .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0])
 
         const incorrectEmbed = new MessageEmbed()
             .setColor('#ff0000')
             .setTitle("Incorrect")
-            .setDescription("<@" + interaction.user.id + "> That wasn't right! You chose: " + interaction.values[0] + ". The correct answer was: " + data.correct_answer)
-            .addField('Question ID', data.id.toString(), true)
-
+            .setDescription("That wasn't right! You chose: " + interaction.values[0] + ". The correct answer was: " + data.correct_answer)
 
         if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
-            await interaction.reply({ embeds: [correctEmbed] });
+            await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
         } else {
-            await interaction.reply({ embeds: [incorrectEmbed] });
+            await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
         }
     }
 })
