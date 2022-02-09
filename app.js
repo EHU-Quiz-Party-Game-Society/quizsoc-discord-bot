@@ -101,12 +101,15 @@ client.on('interactionCreate', async (interaction) => {
         const correctEmbed = new MessageEmbed()
             .setColor('#25ff00')
             .setTitle("Correct")
-            .setDescription("You have selected the correct answer! You chose: " + interaction.values[0])
+            .setDescription('<@' + interaction.user.id + '> You have selected the correct answer! You chose: ' + interaction.values[0])
+            .addField('Question ID', data.id.toString(), true)
 
         const incorrectEmbed = new MessageEmbed()
             .setColor('#ff0000')
             .setTitle("Incorrect")
-            .setDescription("That wasn't right! You chose: " + interaction.values[0] + ". The correct answer was: " + data.correct_answer)
+            .setDescription("<@" + interaction.user.id + "> That wasn't right! You chose: " + interaction.values[0] + ". The correct answer was: " + data.correct_answer)
+            .addField('Question ID', data.id.toString(), true)
+
 
         if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
             await interaction.reply({ embeds: [correctEmbed] });
