@@ -1,7 +1,6 @@
-import DiscordJS, {Client, Intents, MessageActionRow, MessageEmbed, MessageSelectMenu} from 'discord.js'
+import DiscordJS, {Intents, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu} from 'discord.js'
 import dotenv from 'dotenv'
-import fetch from 'node-fetch'
-import {quote} from "@discordjs/builders";
+import {fetchRandomQuestion, fetchQuestion, getStatistics, createButtonRow} from './functions.js'
 dotenv.config()
 
 const client = new DiscordJS.Client({
@@ -10,110 +9,116 @@ const client = new DiscordJS.Client({
 
 client.on('ready', () => {
     console.log('Quiz Client: JS Bot Ready')
-
-    const guildId = process.env.GUILD_ID
-    const guild = client.guilds.cache.get(guildId)
-    let commands
-
-    if(guild) {
-        commands = guild.commands
-    } else {
-        commands = client.application?.commands
-    }
-
-    commands?.create({
-        name: 'question',
-        description: 'Gets a random multiple choice question from the Quiz Database and awaits your response'
-    })
+    console.log('This bot is a member of the following servers:')
+    const Guilds = client.guilds.cache.map(guild => "Guild ID: " + guild.id + ". Guild name: " + guild.name);
+    console.log(Guilds);
 })
-
-function handleErrors(response) {
-    if (!response.ok) {
-        throw Error(response.statusText);
-    }
-    return response;
-}
-
-async function fetchRandomQuestion() {
-    //Get API data - Only get Multiple Choice Questions
-    let response = await fetch(process.env.URL + '/api/question/random?type=1');
-    let data = await response.json();
-    data = JSON.stringify(data);
-    data = JSON.parse(data);
-    return data;
-}
-
-async function fetchQuestion(questionID) {
-    //Get API data - Only get Multiple Choice Questions
-    let response = await fetch(process.env.URL + '/api/question/' + questionID);
-    let data = await response.json();
-    data = JSON.stringify(data);
-    data = JSON.parse(data);
-    return data;
-}
 
 client.on('interactionCreate', async (interaction) => {
+    const { commandName } = interaction;
+
     if (interaction.isCommand()) {
-        let data = await fetchRandomQuestion();
+        if(commandName === 'question') {
+            let data = await fetchRandomQuestion();
 
-        let addToMessageEmbed;
-        const row = new MessageActionRow()
-            .addComponents(
-                addToMessageEmbed = new MessageSelectMenu()
-                    .setCustomId('select')
-                    .setPlaceholder('Select an answer...'),
-            );
+            if(data) {
+                let MenuOptions;
+                let selectMenu = new MessageActionRow()
+                    .addComponents(
+                        MenuOptions = new MessageSelectMenu()
+                            .setCustomId(data.id + 'select')
+                            .setPlaceholder('Select an answer...'),
+                    );
 
-        let splitOptions = data.options.split(/\r?\n/)
-        splitOptions.forEach(function (element) {
-            addToMessageEmbed.addOptions([{
-                label: element,
-                value: element.charAt(0).toUpperCase() //Convert to Upper Case to check against correct answer
-            }])
-        });
+                let splitOptions = data.options.split(/\r?\n/)
+                splitOptions.forEach(function (element) {
+                    MenuOptions.addOptions([{
+                        label: element,
+                        value: element.charAt(0).toUpperCase() //Convert to Upper Case to check against correct answer
+                    }])
+                });
 
-        const exampleEmbed = new MessageEmbed()
-            .setColor('#0099ff')
-            .setTitle(data.question)
-            .setAuthor({ name: 'EHU Quiz & Party Game Question Bank', url: 'https://ehuquizsociety.com' })
-            .setDescription(data.options)
-            .addField('Question Category', data.category.name, true)
-            .setTimestamp()
-            .setFooter({ text: 'Question ID: ' + data.id});
+                const questionEmbed = new MessageEmbed()
+                    .setColor('#0099ff')
+                    .setTitle(data.question)
+                    .setAuthor({name: 'EHU Quiz & Party Game Question Bank', url: 'https://ehuquizsociety.com'})
+                    .setDescription(data.options)
+                    .addField('Question Category', data.category.name, true)
+                    .setTimestamp()
+                    .setFooter({text: 'Question ID: ' + data.id});
 
-        const { commandName, options } = interaction
+                /** If there are more options than A-F, use a select menu, else, use a button row **/
+                if(data.options.split(/\r\n|\r|\n/).length > 4) {
+                    interaction.reply({
+                        embeds: [questionEmbed],
+                        components: [selectMenu]
+                    })
+                } else {
+                    interaction.reply({
+                        embeds: [questionEmbed],
+                        components: [createButtonRow(data.id)]
+                    })
+                }
+            } else {
+                interaction.reply({
+                    content: "Looks like the API isn't reachable at the moment! Please try again later...",
+                })
+            }
+        } else if(commandName === 'stats') {
+            let stats = await getStatistics();
+            if(stats) {
+                let easyRead = JSON.stringify(stats, null, 2)
+                    .replaceAll('"', "**")
+                    .replaceAll('{', "")
+                    .replaceAll('}', "");
 
-        if (commandName === 'question') {
-            interaction.reply({
-                embeds: [exampleEmbed],
-                components: [row]
-            })
+                interaction.reply({content: easyRead})
+            } else {
+                interaction.reply({
+                    content: "Looks like the API isn't reachable at the moment! Please try again later...",
+                })
+            }
         }
     }
 
-    if (!interaction.isSelectMenu()) return;
-    let questionID = interaction.message.embeds[0].footer.text.match(/\d/g).join("");
-    let data = await fetchQuestion(questionID);
+    if (interaction.isSelectMenu() || interaction.isButton()) {
+        let questionID = interaction.customId.match(/\d+/g);
+        let data = await fetchQuestion(questionID);
+        let customId = interaction.customId.replace(/[0-9]/g,'');
+        let array = ['select','A','B','C','D'];
+        if (array.includes(customId)) {
+            const incorrectEmbed = new MessageEmbed()
+                .setColor('#ff0000')
+                .setTitle("Incorrect")
+                .setDescription("That wasn't right! You chose: " + customId + ". The correct answer was: " + data.correct_answer)
 
+            if(data.options.split(/\r\n|\r|\n/).length > 4) {
+                const correctEmbed = new MessageEmbed()
+                    .setColor('#25ff00')
+                    .setTitle("Correct")
+                    .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0]);
 
-    if (interaction.customId === 'select') {
+                if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
+                    await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                } else {
+                    await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                }
+            } else {
+                const correctEmbed = new MessageEmbed()
+                    .setColor('#25ff00')
+                    .setTitle("Correct")
+                    .setDescription('You have selected the correct answer! You chose: ' + customId);
 
-        const correctEmbed = new MessageEmbed()
-            .setColor('#25ff00')
-            .setTitle("Correct")
-            .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0])
-
-        const incorrectEmbed = new MessageEmbed()
-            .setColor('#ff0000')
-            .setTitle("Incorrect")
-            .setDescription("That wasn't right! You chose: " + interaction.values[0] + ". The correct answer was: " + data.correct_answer)
-
-        if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
-            await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                if(data.correct_answer.charAt(0).toUpperCase() === customId) {
+                    await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                } else {
+                    await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                }
+            }
         } else {
-            await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+            console.log("Not In Array! CustomID " + customId)
         }
     }
-})
+});
 
 client.login(process.env.TOKEN)
