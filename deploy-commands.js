@@ -7,7 +7,8 @@ const client = new DiscordJS.Client({
 
 client.on('ready', () => {
     const guildId = process.env.GUILD_ID
-    const guild = client.guilds.cache.get(guildId)
+    //const guild = client.guilds.cache.get(guildId)
+    const guild = false
     let commands
 
     if(guild) {
@@ -15,6 +16,8 @@ client.on('ready', () => {
     } else {
         commands = client.application?.commands
     }
+
+    commands = client.application?.commands
 
     commands?.create({
         name: 'question',
