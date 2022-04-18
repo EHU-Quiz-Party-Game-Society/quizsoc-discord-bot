@@ -1,6 +1,17 @@
 import DiscordJS, {Intents, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu} from 'discord.js'
 import dotenv from 'dotenv'
 import {fetchRandomQuestion, fetchQuestion, getStatistics, createButtonRow} from './functions.js'
+import * as Sentry from "@sentry/node";
+import * as Tracing from "@sentry/tracing";
+
+Sentry.init({
+    dsn: "https://a2262a26872d49e6846cf6cff352c9ee@o1208828.ingest.sentry.io/6342124",
+
+    // Set tracesSampleRate to 1.0 to capture 100%
+    // of transactions for performance monitoring.
+    // We recommend adjusting this value in production
+    tracesSampleRate: 1.0,
+});
 dotenv.config()
 
 const client = new DiscordJS.Client({
@@ -21,7 +32,7 @@ client.on('interactionCreate', async (interaction) => {
         if(commandName === 'question') {
             let data = await fetchRandomQuestion();
 
-            if(data) {
+            try {
                 let MenuOptions;
                 let selectMenu = new MessageActionRow()
                     .addComponents(
@@ -47,6 +58,9 @@ client.on('interactionCreate', async (interaction) => {
                     .setTimestamp()
                     .setFooter({text: 'Question ID: ' + data.id});
 
+                //Log the info into the console for debugging purposes
+                console.info(interaction.user.username + " has requested question " + data.id + " in server " + interaction.guild.name)
+
                 /** If there are more options than A-F, use a select menu, else, use a button row **/
                 if(data.options.split(/\r\n|\r|\n/).length > 4) {
                     interaction.reply({
@@ -59,24 +73,26 @@ client.on('interactionCreate', async (interaction) => {
                         components: [createButtonRow(data.id)]
                     })
                 }
-            } else {
+            } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
+                Sentry.captureException(e);
             }
         } else if(commandName === 'stats') {
             let stats = await getStatistics();
-            if(stats) {
+            try {
                 let easyRead = JSON.stringify(stats, null, 2)
                     .replaceAll('"', "**")
                     .replaceAll('{', "")
                     .replaceAll('}', "");
 
                 interaction.reply({content: easyRead})
-            } else {
+            } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
+                Sentry.captureException(e);
             }
         }
     }
@@ -86,34 +102,51 @@ client.on('interactionCreate', async (interaction) => {
         let data = await fetchQuestion(questionID);
         let customId = interaction.customId.replace(/[0-9]/g,'');
         let array = ['select','A','B','C','D'];
+
+        //Log information into console for debugging
+        console.info(interaction.user.username + " has interacted with question " + data.id + " in server " + interaction.guild.name)
+
         if (array.includes(customId)) {
             const incorrectEmbed = new MessageEmbed()
                 .setColor('#ff0000')
                 .setTitle("Incorrect")
                 .setDescription("That wasn't right! You chose: " + customId + ". The correct answer was: " + data.correct_answer)
 
-            if(data.options.split(/\r\n|\r|\n/).length > 4) {
-                const correctEmbed = new MessageEmbed()
-                    .setColor('#25ff00')
-                    .setTitle("Correct")
-                    .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0]);
+            try {
+                if(data.options.split(/\r\n|\r|\n/).length > 4) {
+                    const correctEmbed = new MessageEmbed()
+                        .setColor('#25ff00')
+                        .setTitle("Correct")
+                        .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0]);
 
-                if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
-                    await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                    if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
+                        await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                        //Log information into console for debugging
+                        console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
+                    } else {
+                        await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                        //Log information into console for debugging
+                        console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
+                    }
                 } else {
-                    await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
-                }
-            } else {
-                const correctEmbed = new MessageEmbed()
-                    .setColor('#25ff00')
-                    .setTitle("Correct")
-                    .setDescription('You have selected the correct answer! You chose: ' + customId);
+                    const correctEmbed = new MessageEmbed()
+                        .setColor('#25ff00')
+                        .setTitle("Correct")
+                        .setDescription('You have selected the correct answer! You chose: ' + customId);
 
-                if(data.correct_answer.charAt(0).toUpperCase() === customId) {
-                    await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
-                } else {
-                    await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                    if(data.correct_answer.charAt(0).toUpperCase() === customId) {
+                        await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                        //Log information into console for debugging
+                        console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
+                    } else {
+                        await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                        //Log information into console for debugging
+                        console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
+                    }
                 }
+            } catch(e) {
+                console.error("Unable to proceed with interaction. Error: " + e)
+                Sentry.captureException("Unable to proceed with interaction. Error: " + e);
             }
         } else {
             console.log("Not In Array! CustomID " + customId)
