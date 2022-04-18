@@ -1,6 +1,11 @@
 import DiscordJS, {Intents, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu} from 'discord.js'
 import dotenv from 'dotenv'
-import {fetchRandomQuestion, fetchQuestion, getStatistics, createButtonRow} from './functions.js'
+import {
+    fetchRandomQuestion,
+    fetchQuestion,
+    getStatistics,
+    createButtonRow
+} from './functions.js'
 import * as Sentry from "@sentry/node";
 import * as Tracing from "@sentry/tracing";
 
@@ -30,7 +35,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isCommand()) {
         if(commandName === 'question') {
-            let data = await fetchRandomQuestion();
+            let data = await fetchRandomQuestion(interaction);
 
             try {
                 let MenuOptions;
@@ -70,14 +75,21 @@ client.on('interactionCreate', async (interaction) => {
                 } else {
                     interaction.reply({
                         embeds: [questionEmbed],
-                        components: [createButtonRow(data.id)]
+                        components: [createButtonRow(interaction, data.id)]
                     })
                 }
             } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
-                Sentry.captureException(e);
+                console.error("Unable to reach API")
+                Sentry.captureException(e, {
+                    user: {
+                        id: interaction.user.id,
+                        username: interaction.user.username
+                    },
+                    level: 'fatal'
+                })
             }
         } else if(commandName === 'stats') {
             let stats = await getStatistics();
@@ -92,14 +104,21 @@ client.on('interactionCreate', async (interaction) => {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
-                Sentry.captureException(e);
+                console.error("Unable to reach API")
+                Sentry.captureException(e, {
+                    user: {
+                        id: interaction.user.id,
+                        username: interaction.user.username
+                    },
+                    level: 'fatal'
+                })
             }
         }
     }
 
     if (interaction.isSelectMenu() || interaction.isButton()) {
         let questionID = interaction.customId.match(/\d+/g);
-        let data = await fetchQuestion(questionID);
+        let data = await fetchQuestion(interaction, questionID);
         let customId = interaction.customId.replace(/[0-9]/g,'');
         let array = ['select','A','B','C','D'];
 
@@ -145,8 +164,14 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             } catch(e) {
-                console.error("Unable to proceed with interaction. Error: " + e)
-                Sentry.captureException("Unable to proceed with interaction. Error: " + e);
+                console.error("Unable to display ephemeral response.")
+                Sentry.captureException(e, {
+                    user: {
+                        id: interaction.user.id,
+                        username: interaction.user.username
+                    },
+                    level: 'fatal'
+                })
             }
         } else {
             console.log("Not In Array! CustomID " + customId)
