@@ -6,9 +6,9 @@ const client = new DiscordJS.Client({
 })
 
 client.on('ready', () => {
-    const guildId = process.env.GUILD_ID
-    //const guild = client.guilds.cache.get(guildId)
-    const guild = false
+    const guildId = 941318945024139295
+    const guild = 941318945024139295
+    //const guild = false
     let commands
 
     if(guild) {
@@ -17,7 +17,7 @@ client.on('ready', () => {
         commands = client.application?.commands
     }
 
-    commands = client.application?.commands
+    commands = guild.commands
 
     commands?.create({
         name: 'question',
@@ -25,6 +25,15 @@ client.on('ready', () => {
     },{
         name: 'stats',
         description: 'Gets Quiz Server statistics',
+    },{
+        name: 'card',
+        description: 'View a bingo card via ID',
+        options: {
+            name: 'code',
+            type: 'STRING',
+            description: "Insert the bingo card's code. This can usually be found on the top right of the bingo card",
+            required: true
+        }
     })
 })
 
