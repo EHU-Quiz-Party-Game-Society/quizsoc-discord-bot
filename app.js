@@ -4,7 +4,7 @@ import {
     fetchRandomQuestion,
     fetchQuestion,
     getStatistics,
-    createButtonRow
+    createButtonRow, getBingoCard
 } from './functions.js'
 import * as Sentry from "@sentry/node";
 import * as Tracing from "@sentry/tracing";
@@ -100,6 +100,41 @@ client.on('interactionCreate', async (interaction) => {
                     .replaceAll('}', "");
 
                 interaction.reply({content: easyRead})
+            } catch(e) {
+                interaction.reply({
+                    content: "Looks like the API isn't reachable at the moment! Please try again later...",
+                })
+                console.error("Unable to reach API")
+                Sentry.captureException(e, {
+                    user: {
+                        id: interaction.user.id,
+                        username: interaction.user.username
+                    },
+                    level: 'fatal'
+                })
+            }
+        }
+        else if(commandName === 'card') {
+            const code = interaction.options.getString('code');
+            const card = await getBingoCard(interaction, code);
+            try {
+                if(card) {
+                    interaction.reply({
+                        content: "Bingo card: " + code,
+                        files: [card]
+                    })
+                } else {
+                    interaction.reply({
+                        content: "Unable to generate bingo card. Please check the code in the top right of the bingo card!",
+                    })
+                    Sentry.captureException("Unable to reply with Bingo Card", {
+                        user: {
+                            id: interaction.user.id,
+                            username: interaction.user.username
+                        },
+                        level: 'fatal'
+                    })
+                }
             } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
