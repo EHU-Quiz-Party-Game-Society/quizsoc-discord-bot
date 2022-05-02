@@ -4,20 +4,21 @@ import {
     fetchRandomQuestion,
     fetchQuestion,
     getStatistics,
-    createButtonRow, getBingoCard
+    createButtonRow,
 } from './functions.js'
 import * as Sentry from "@sentry/node";
 import * as Tracing from "@sentry/tracing";
+dotenv.config()
 
 Sentry.init({
-    dsn: "https://a2262a26872d49e6846cf6cff352c9ee@o1208828.ingest.sentry.io/6342124",
+    dsn: process.env.SENTRY_DSN,
 
     // Set tracesSampleRate to 1.0 to capture 100%
     // of transactions for performance monitoring.
     // We recommend adjusting this value in production
     tracesSampleRate: 1.0,
 });
-dotenv.config()
+
 
 const client = new DiscordJS.Client({
     intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
@@ -116,25 +117,10 @@ client.on('interactionCreate', async (interaction) => {
         }
         else if(commandName === 'card') {
             const code = interaction.options.getString('code');
-            const card = await getBingoCard(interaction, code);
             try {
-                if(card) {
-                    interaction.reply({
-                        content: "Bingo card: " + code,
-                        files: [card]
-                    })
-                } else {
-                    interaction.reply({
-                        content: "Unable to generate bingo card. Please check the code in the top right of the bingo card!",
-                    })
-                    Sentry.captureException("Unable to reply with Bingo Card", {
-                        user: {
-                            id: interaction.user.id,
-                            username: interaction.user.username
-                        },
-                        level: 'fatal'
-                    })
-                }
+                interaction.reply({
+                    content: "https://ehuquizsociety.com/bingo/card/" + code,
+                })
             } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
