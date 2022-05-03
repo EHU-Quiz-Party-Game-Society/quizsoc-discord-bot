@@ -135,6 +135,26 @@ client.on('interactionCreate', async (interaction) => {
                 })
             }
         }
+        else if(commandName === 'sheet') {
+            const code = interaction.options.getString('sheet');
+            try {
+                interaction.reply({
+                    content: "https://ehuquizsociety.com/bingo/sheet/" + code,
+                })
+            } catch(e) {
+                interaction.reply({
+                    content: "Looks like the API isn't reachable at the moment! Please try again later...",
+                })
+                console.error("Unable to reach API")
+                Sentry.captureException(e, {
+                    user: {
+                        id: interaction.user.id,
+                        username: interaction.user.username
+                    },
+                    level: 'fatal'
+                })
+            }
+        }
     }
 
     if (interaction.isSelectMenu() || interaction.isButton()) {
