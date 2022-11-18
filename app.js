@@ -5,6 +5,7 @@ import {
     fetchQuestion,
     getStatistics,
     createButtonRow,
+    replyWithFeedback,
 } from './functions.js'
 import * as Sentry from "@sentry/node";
 import * as Tracing from "@sentry/tracing";
@@ -171,20 +172,22 @@ client.on('interactionCreate', async (interaction) => {
                 .setColor('#ff0000')
                 .setTitle("Incorrect")
                 .setDescription("That wasn't right! You chose: " + customId + ". The correct answer was: " + data.correct_answer)
+                .setFooter({text: "Use /question to play again with another random question!"});
 
             try {
                 if(data.options.split(/\r\n|\r|\n/).length > 4) {
                     const correctEmbed = new MessageEmbed()
                         .setColor('#25ff00')
                         .setTitle("Correct")
-                        .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0]);
+                        .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0])
+                        .setFooter({text: "Use /question to play again with another random question!"});
 
                     if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
-                        await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                        reply(interaction, correctEmbed, data)
                         //Log information into console for debugging
                         console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
                     } else {
-                        await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                        reply(interaction, incorrectEmbed, data)
                         //Log information into console for debugging
                         console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
                     }
@@ -192,20 +195,23 @@ client.on('interactionCreate', async (interaction) => {
                     const correctEmbed = new MessageEmbed()
                         .setColor('#25ff00')
                         .setTitle("Correct")
-                        .setDescription('You have selected the correct answer! You chose: ' + customId);
+                        .setDescription('You have selected the correct answer! You chose: ' + customId)
+                        .setFooter({text: "Use /question to play again with another random question!"});
 
                     if(data.correct_answer.charAt(0).toUpperCase() === customId) {
-                        await interaction.reply({ embeds: [correctEmbed], ephemeral: true });
+                        reply(interaction, correctEmbed, data)
                         //Log information into console for debugging
                         console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
                     } else {
-                        await interaction.reply({ embeds: [incorrectEmbed], ephemeral: true });
+                        reply(interaction, incorrectEmbed, data)
                         //Log information into console for debugging
                         console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
                     }
+
+
                 }
             } catch(e) {
-                console.error("Unable to display ephemeral response.")
+                console.error("Unable to display ephemeral response." + e)
                 Sentry.captureException(e, {
                     user: {
                         id: interaction.user.id,
@@ -219,5 +225,19 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 });
+
+function reply(interaction, embed, data) {
+    if(interaction.isButton()) {
+        interaction.deferUpdate().then(r => interaction.message.edit({
+            embeds: [interaction.message.embeds[0], embed],
+            components: [replyWithFeedback(interaction, data.id, data.correct_answer.charAt(0).toUpperCase())]
+        }));
+    } else {
+        interaction.deferUpdate().then(r => interaction.message.edit({
+            embeds: [interaction.message.embeds[0], embed],
+            components: []
+        }));
+    }
+}
 
 client.login(process.env.TOKEN)
