@@ -6,6 +6,7 @@ import {
     getStatistics,
     createButtonRow,
     replyWithFeedback,
+    addCallToActionTryAgain
 } from './functions.js'
 import * as Sentry from "@sentry/node";
 import * as Tracing from "@sentry/tracing";
@@ -34,9 +35,8 @@ client.on('ready', () => {
 
 client.on('interactionCreate', async (interaction) => {
     const { commandName } = interaction;
-
-    if (interaction.isCommand()) {
-        if(commandName === 'question') {
+    if (interaction.isCommand() || interaction.customId === 'requestNewQuestion') {
+        if(commandName === 'question' || interaction.customId === 'requestNewQuestion') {
             let data = await fetchRandomQuestion(interaction);
 
             try {
@@ -56,35 +56,30 @@ client.on('interactionCreate', async (interaction) => {
                     }])
                 });
 
+                const categories = data.category.map(category => category.name);
+
                 const questionEmbed = new MessageEmbed()
                     .setColor('#0099ff')
                     .setTitle(data.question)
                     .setAuthor({name: 'EHU Quiz & Party Game Question Bank', url: 'https://ehuquizsociety.com'})
-                    .setDescription(data.options)
-                    .addField('Question Category', data.category.name, true)
-                    .setTimestamp()
+                    .setDescription('')
+                    .addField('Categories: ', categories.join(', '), true)
+                    //.setTimestamp()
                     .setFooter({text: 'Question ID: ' + data.id});
 
                 //Log the info into the console for debugging purposes
                 console.info(interaction.user.username + " has requested question " + data.id + " in server " + interaction.guild.name)
 
-                /** If there are more options than A-F, use a select menu, else, use a button row **/
-                if(data.options.split(/\r\n|\r|\n/).length > 4) {
-                    interaction.reply({
-                        embeds: [questionEmbed],
-                        components: [selectMenu]
-                    })
-                } else {
-                    interaction.reply({
-                        embeds: [questionEmbed],
-                        components: [createButtonRow(interaction, data.id)]
-                    })
-                }
+                interaction.reply({
+                    embeds: [questionEmbed],
+                    components: [createButtonRow(interaction, data)]
+                })
+
             } catch(e) {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
-                console.error("Unable to reach API")
+                console.error("Unable to reach API. Error: " + e)
                 Sentry.captureException(e, {
                     user: {
                         id: interaction.user.id,
@@ -230,7 +225,7 @@ function reply(interaction, embed, data) {
     if(interaction.isButton()) {
         interaction.deferUpdate().then(r => interaction.message.edit({
             embeds: [interaction.message.embeds[0], embed],
-            components: [replyWithFeedback(interaction, data.id, data.correct_answer.charAt(0).toUpperCase())]
+            components: [replyWithFeedback(interaction, data, data.correct_answer.charAt(0).toUpperCase()), addCallToActionTryAgain()]
         }));
     } else {
         interaction.deferUpdate().then(r => interaction.message.edit({
