@@ -21,7 +21,6 @@ Sentry.init({
     tracesSampleRate: 1.0,
 });
 
-
 const client = new DiscordJS.Client({
     intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
 })
@@ -40,22 +39,6 @@ client.on('interactionCreate', async (interaction) => {
             let data = await fetchRandomQuestion(interaction);
 
             try {
-                let MenuOptions;
-                let selectMenu = new MessageActionRow()
-                    .addComponents(
-                        MenuOptions = new MessageSelectMenu()
-                            .setCustomId(data.id + 'select')
-                            .setPlaceholder('Select an answer...'),
-                    );
-
-                let splitOptions = data.options.split(/\r?\n/)
-                splitOptions.forEach(function (element) {
-                    MenuOptions.addOptions([{
-                        label: element,
-                        value: element.charAt(0).toUpperCase() //Convert to Upper Case to check against correct answer
-                    }])
-                });
-
                 const categories = data.category.map(category => category.name);
 
                 const questionEmbed = new MessageEmbed()
@@ -79,7 +62,7 @@ client.on('interactionCreate', async (interaction) => {
                 interaction.reply({
                     content: "Looks like the API isn't reachable at the moment! Please try again later...",
                 })
-                console.error("Unable to reach API. Error: " + e)
+                console.log("Unable to reach API. Error: " + e)
                 Sentry.captureException(e, {
                     user: {
                         id: interaction.user.id,
@@ -157,7 +140,7 @@ client.on('interactionCreate', async (interaction) => {
         let questionID = interaction.customId.match(/\d+/g);
         let data = await fetchQuestion(interaction, questionID);
         let customId = interaction.customId.replace(/[0-9]/g,'');
-        let array = ['select','A','B','C','D'];
+        let array = ['A','B','C','D'];
 
         //Log information into console for debugging
         console.info(interaction.user.username + " has interacted with question " + data.id + " in server " + interaction.guild.name)
@@ -170,43 +153,23 @@ client.on('interactionCreate', async (interaction) => {
                 .setFooter({text: "Use /question to play again with another random question!"});
 
             try {
-                if(data.options.split(/\r\n|\r|\n/).length > 4) {
-                    const correctEmbed = new MessageEmbed()
-                        .setColor('#25ff00')
-                        .setTitle("Correct")
-                        .setDescription('You have selected the correct answer! You chose: ' + interaction.values[0])
-                        .setFooter({text: "Use /question to play again with another random question!"});
+                const correctEmbed = new MessageEmbed()
+                    .setColor('#25ff00')
+                    .setTitle("Correct")
+                    .setDescription('You have selected the correct answer! You chose: ' + customId)
+                    .setFooter({text: "Use /question to play again with another random question!"});
 
-                    if(data.correct_answer.charAt(0).toUpperCase() === interaction.values[0].charAt(0).toUpperCase()) {
-                        reply(interaction, correctEmbed, data)
-                        //Log information into console for debugging
-                        console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
-                    } else {
-                        reply(interaction, incorrectEmbed, data)
-                        //Log information into console for debugging
-                        console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
-                    }
+                if(data.correct_answer.charAt(0).toUpperCase() === customId) {
+                    reply(interaction, correctEmbed, data)
+                    //Log information into console for debugging
+                    console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
                 } else {
-                    const correctEmbed = new MessageEmbed()
-                        .setColor('#25ff00')
-                        .setTitle("Correct")
-                        .setDescription('You have selected the correct answer! You chose: ' + customId)
-                        .setFooter({text: "Use /question to play again with another random question!"});
-
-                    if(data.correct_answer.charAt(0).toUpperCase() === customId) {
-                        reply(interaction, correctEmbed, data)
-                        //Log information into console for debugging
-                        console.info(interaction.user.username + " has got question " + data.id + " correct in server " + interaction.guild.name)
-                    } else {
-                        reply(interaction, incorrectEmbed, data)
-                        //Log information into console for debugging
-                        console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
-                    }
-
-
+                    reply(interaction, incorrectEmbed, data)
+                    //Log information into console for debugging
+                    console.info(interaction.user.username + " has got question " + data.id + " wrong in server " + interaction.guild.name)
                 }
             } catch(e) {
-                console.error("Unable to display ephemeral response." + e)
+                console.trace("Unable to display ephemeral response." + e)
                 Sentry.captureException(e, {
                     user: {
                         id: interaction.user.id,
@@ -215,8 +178,6 @@ client.on('interactionCreate', async (interaction) => {
                     level: 'fatal'
                 })
             }
-        } else {
-            console.log("Not In Array! CustomID " + customId)
         }
     }
 });

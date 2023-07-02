@@ -9,11 +9,7 @@ export async function fetchRandomQuestion(interaction) {
         let data = await response.json();
         data = JSON.stringify(data);
         data = JSON.parse(data);
-        if(data.options.split(/\r\n|\r|\n/).length > 4) {
-            await fetchRandomQuestion(interaction)
-        } else {
-            return data;
-        }
+        return data;
     } catch(e) {
         console.error("Unable to reach API")
         Sentry.captureException(e, {
@@ -94,7 +90,8 @@ export function createButtonRow(interaction, data) {
                     .setStyle('PRIMARY'),
             );
     } catch(e) {
-        console.error("Unable to create button row")
+        console.error("Unable to create button row.")
+        console.log("Requested Question: " + data)
         Sentry.captureException(e, {
             user: {
                 id: interaction.user.id,
@@ -214,7 +211,7 @@ export function replyWithFeedback(interaction, data, correct) {
                         addOption(question_id + 'A', options[0], 'SUCCESS'),
                         addOption(question_id + 'B', options[1], 'SECONDARY'),
                         addOption(question_id + 'C', options[2], 'SECONDARY'),
-                        addOption(question_id + 'D', options[3], 'DAANGER'),
+                        addOption(question_id + 'D', options[3], 'DANGER'),
                     );
             case customId === 'D' && correct === 'B':
                 return new MessageActionRow()
